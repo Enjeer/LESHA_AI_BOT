@@ -55,40 +55,42 @@ async def show_all_themes(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return SELECT_THEME
 
 
-async def select_theme(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def select_theme(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    text = update.message.text.strip()
+    raw_text = update.message.text.strip()
+
+    # убираем возможный слэш (/5 → 5)
+    if raw_text.startswith("/"):
+        raw_text = raw_text[1:]
 
     try:
-        if manager.set_theme(chat_id, text):
-            theme = manager.games[chat_id]["theme"]
+        choice = int(raw_text)
+    except ValueError:
+        await update.message.reply_text("❌ Введите число (например, 5).")
+        return SELECT_THEME
+
+    try:
+        if manager.set_theme(chat_id, choice):
+            theme = manager.games[chat_id]['theme']
+
             await update.message.reply_text(
-                f"✅ Тема выбрана: **{theme}**\n\n"
+                f"✅ Тема выбрана: *{theme}*\n\n"
                 "⏱️ У игроков есть 5 минут на отправку ответов!",
                 parse_mode="Markdown"
             )
 
-            # Рассылка в личку игрокам
-            members = await context.bot.get_chat_administrators(chat_id)
-            for member in members:
-                if not member.user.is_bot:
-                    try:
-                        await context.bot.send_message(
-                            member.user.id,
-                            f"🎯 Тема: **{theme}**\n"
-                            "Пришлите ваш ответ в личном сообщении (одним сообщением)!",
-                            parse_mode="Markdown"
-                        )
-                    except Exception as e:
-                        logger.warning(f"Не удалось отправить сообщение пользователю: {member.user.id} | {e}")
+            # запускаем таймер на окончание фазы
+            context.job_queue.run_once(end_answers_phase, TIMEOUT, chat_id=chat_id)
 
-            context.job_queue.run_once(end_answers_phase, TIMEOUT, chat_id)
             return COLLECT_ANSWERS
-    except Exception:
-        pass
+        else:
+            await update.message.reply_text("❌ Неверный номер темы! Попробуйте снова.")
+            return SELECT_THEME
 
-    await update.message.reply_text("❌ Неверный номер темы! Попробуйте снова.")
-    return SELECT_THEME
+    except Exception as e:
+        logger.error(f"Ошибка выбора темы ({chat_id}): {e}", exc_info=True)
+        await update.message.reply_text("⚠️ Ошибка при выборе темы, попробуйте ещё раз.")
+        return SELECT_THEME
 
 
 async def handle_private_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
