@@ -106,11 +106,9 @@ async def handle_private_answer(update: Update, context: ContextTypes.DEFAULT_TY
     text = update.message.text
 
     for chat_id, game in manager.games.items():
-        if game["status"] == "collecting_answers" and user.id in game["players"]:
+        if game["status"] == "collecting_answers":
             if manager.add_answer(chat_id, user.id, text):
-                await update.message.reply_text(
-                    "✅ Ответ сохранен! Ожидайте начала голосования."
-                )
+                await update.message.reply_text("✅ Ответ сохранен! Ожидайте начала голосования.")
             else:
                 await update.message.reply_text("❌ Вы уже отправили ответ!")
             break
@@ -118,6 +116,7 @@ async def handle_private_answer(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("ℹ️ Сейчас нет активных игр, где вы участвуете.")
 
     return COLLECT_ANSWERS
+
 
 
 async def end_answers_phase(context: ContextTypes.DEFAULT_TYPE):
