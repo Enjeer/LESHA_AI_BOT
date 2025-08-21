@@ -130,3 +130,5 @@ class GameManager:
             del self.games[chat_id]
             return "Игра завершена."
         return "Игра не найдена."
+
+manager = GameManager()
