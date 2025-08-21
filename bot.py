@@ -11,7 +11,6 @@ from telegram.ext import (
     filters,
 )
 from game_manager import manager
-from api_client import generate_ai_response
 from config import BOT_TOKEN, TIMEOUT
 
 # Логгирование
@@ -83,7 +82,7 @@ async def select_theme(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await update.message.reply_text(
                 f"✅ Тема выбрана: *{theme}*\n\n"
-                "⏱️ У игроков есть 5 минут на отправку ответов!",
+                "⏱️ У игроков есть 5 минут на отправку ответов! Напишите мне в ЛС.",
                 parse_mode="Markdown",
             )
 
@@ -107,6 +106,7 @@ async def handle_private_answer(update: Update, context: ContextTypes.DEFAULT_TY
 
     for chat_id, game in manager.games.items():
         if game["status"] == "collecting_answers":
+            # Добавляем игрока автоматически при первом ответе
             if manager.add_answer(chat_id, user.id, text):
                 await update.message.reply_text("✅ Ответ сохранен! Ожидайте начала голосования.")
             else:
@@ -116,7 +116,6 @@ async def handle_private_answer(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text("ℹ️ Сейчас нет активных игр, где вы участвуете.")
 
     return COLLECT_ANSWERS
-
 
 
 async def end_answers_phase(context: ContextTypes.DEFAULT_TYPE):
@@ -238,7 +237,7 @@ def main():
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & filters.TEXT, handle_private_answer))
 
-    # --- Важно: Webhook вместо Polling ---
+    # --- Webhook ---
     port = int(os.environ.get("PORT", 8443))
     app_url = os.getenv("RENDER_EXTERNAL_URL")
     if not app_url:
